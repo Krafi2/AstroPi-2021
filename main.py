@@ -5,10 +5,6 @@ from logzero import logger, logfile
 from pathlib import Path
 
 
-dt = timedelta(seconds=1)  # Time between measurements
-runtime = timedelta(minutes=178)  # Runtime of the program
-
-
 def setup():
     sense = SenseHat()
 
@@ -16,9 +12,14 @@ def setup():
     logfile(dir/"kkkm.log")
 
     return sense
+    
+
+dt = timedelta(seconds=1)  # Time between measurements
+runtime = timedelta(minutes=178)  # Runtime of the program
+sense = setup()
 
 
-def measure():
+def take_photo():
     pass
 
 
@@ -33,7 +34,7 @@ def main():
             now_time = datetime.now()
             if now_time > next_time:
                 next_time = now_time + dt
-                measure()
+                take_photo()
 
                 # Check if we are late
                 if datetime.now() > next_time:
