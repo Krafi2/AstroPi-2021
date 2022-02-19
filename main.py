@@ -112,7 +112,7 @@ def measure():
         if quality >= minval:
             global n
             logger.info("Photo is good")
-            img_name = dir / "photo_{}.jpg".format(str(n).zfill(3))
+            img_name = dir / "photo_{}.jpg".format(str(n).zfill(4))
             image.save(img_name)
             n += 1
             photo_quality[img_name] = quality
@@ -138,7 +138,7 @@ def main():
                 measure()
                 # Check if we are late
                 if datetime.now() > next_time:
-                    logger.warn("Measurement took too long")
+                    logger.warning("Measurement took too long")
 
         except Exception as e:
             logger.error("{}: {}".format(e.__class__.__name__, e))
