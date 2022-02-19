@@ -10,8 +10,6 @@ runtime = timedelta(minutes=178)  # Runtime of the program
 
 def setup():
     sense = SenseHat()
-    # Recommended color gain
-    sense.color.gain = 60
 
     dir = Path(__file__).parent.resolve()
     logfile(dir/"kkkm.log")
