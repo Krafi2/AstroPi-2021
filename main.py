@@ -60,7 +60,7 @@ def take_photo(n):
     quality = eval_photo(image)
 
     if quality >= minval:
-        img_name = "photo_{}".format(str(n).zfill(3))
+        img_name = "photo_{}.jpg".format(str(n).zfill(3))
         image.save(img_name)
         n += 1
         photo_quality[img_name] = quality
