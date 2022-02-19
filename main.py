@@ -34,7 +34,7 @@ ImageDraw.Draw(circle_mask).ellipse(
 
 # Logging
 dir = Path(__file__).parent.resolve()
-logfile(dir / "kkkm.log")
+logfile(dir / "log.log")
 
 
 def get_size():
@@ -47,6 +47,7 @@ def get_size():
 
 
 def eval_photo(image):
+    logger.info("Starting photo evaluation")
     palette = {
         "ocean": (35, 118, 152),
         "night": (0, 0, 0),
@@ -81,6 +82,7 @@ def eval_photo(image):
 
             counts[color] += 1
 
+    logger.info("Finished pohoto evaluation")
     return round(sum({count * weights[name] for (name, count) in counts.items()})) * sample ** 2
 
 
@@ -92,11 +94,13 @@ def crop_photo(image):
 
 
 def take_photo():
+    logger.info("Taking photo")
     stream = io.BytesIO()
     camera.capture(stream, format="jpeg")
     stream.seek(0)
     image = Image.open(stream)
     image = crop_photo(image)
+    logger.info("Photo taken")
     return image
 
 
@@ -107,14 +111,19 @@ def measure():
         quality = eval_photo(image)
         if quality >= minval:
             global n
+            logger.info("Photo is good")
             img_name = dir / "photo_{}.jpg".format(str(n).zfill(3))
             image.save(img_name)
             n += 1
             photo_quality[img_name] = quality
+        else:
+            logger.info("Photo is bad")
 
 
 def main():
+    logger.info("Warming up camera")
     sleep(2)  # Camera warmup
+    logger.info("Started")
 
     now_time = datetime.now()
     end_time = now_time + runtime
@@ -133,6 +142,7 @@ def main():
 
         except Exception as e:
             logger.error("{}: {}".format(e.__class__.__name__, e))
+    logger.info("Finished")
 
 
 if __name__ == "__main__":
