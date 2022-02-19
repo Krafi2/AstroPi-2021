@@ -1,71 +1,49 @@
-from sense_hat import SenseHat
 from picamera import PiCamera
 from datetime import datetime, timedelta
 from logzero import logger, logfile
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw
+import io
 import os
+from time import sleep
 
 
-def setup():
-    sense = SenseHat()
-
-    dir = Path(__file__).parent.resolve()
-    logfile(dir / "kkkm.log")
-
-    return sense
-
-
+# Timing
 dt = timedelta(seconds=1)  # Time between measurements
 runtime = timedelta(minutes=178)  # Runtime of the program
-sense = setup()
 
+# Camera setup
 camera = PiCamera()
 camera.resolution = (4056, 3040)
 camera.start_preview()
-sleep(2)
-# camera setup
-minval = 0
-# mininum value to save photo, choose after experiments
+
+# Photo setup
+minval = 0  # Minimum rating required to save a photo
 n = 0
-max_space = 3000000000
-# number of photos taken
-photo_quality = {}
-# dict
+max_space = 2_990_000_000  # Maximum available data size
+photo_quality = {}  # dict
+sample = 16  # Image quality sampling factor
+
+
+# Window mask
+circle_bb_topleft_corner = (644, 72)
+circle_diameter = 2825
+circle_mask = Image.new("RGB", (circle_diameter, circle_diameter), (0, 0, 0))
+ImageDraw.Draw(circle_mask).ellipse(
+    [(0, 0), (circle_diameter, circle_diameter)], fill=(255, 255, 255))
+
+# Logging
+dir = Path(__file__).parent.resolve()
+logfile(dir / "kkkm.log")
 
 
 def get_size():
     size = 0
-    for path, dirs, files in os.walk(dir):
+    for path, _, files in os.walk(dir):
         for f in files:
             fp = os.path.join(path, f)
             size += os.path.getsize(fp)
-        return size
-
-
-def crop_photo(image):
-    return image
-
-
-def take_photo(n):
-    current_size = get_size()
-    while current_size >= max_space:
-        min_val = min(photo_quality.itervalues())
-        lowest = [k for k, v in photo_quality.iteritems() if v == min_val]
-        remaining = photo_quality.viewkeys() - lowest
-        for name in lowest:
-            os.remove(name)
-    camera.capture(stream, format='jpeg')
-    stream.seek(0)
-    image = Image.open(stream)
-    image = crop_photo(image)
-    quality = eval_photo(image)
-
-    if quality >= minval:
-        img_name = "photo_{}.jpg".format(str(n).zfill(3))
-        image.save(img_name)
-        n += 1
-        photo_quality[img_name] = quality
+    return size
 
 
 def eval_photo(image):
@@ -88,8 +66,6 @@ def eval_photo(image):
         "ground": 0,
     }
 
-    # Sampling factor
-    sample = 16
     for x in range(image.width // sample):
         for y in range(image.height // sample):
             pix = image.getpixel((x * sample, y * sample))
@@ -108,10 +84,41 @@ def eval_photo(image):
     return round(sum({count * weights[name] for (name, count) in counts.items()})) * sample ** 2
 
 
+def crop_photo(image):
+    image = image.crop((circle_bb_topleft_corner[0], circle_bb_topleft_corner[1],
+                        circle_bb_topleft_corner[0] + circle_diameter, circle_bb_topleft_corner[1] + circle_diameter))
+    image = ImageChops.multiply(image, circle_mask)
+    return image
+
+
+def take_photo():
+    stream = io.BytesIO()
+    camera.capture(stream, format="jpeg")
+    stream.seek(0)
+    image = Image.open(stream)
+    image = crop_photo(image)
+    return image
+
+
+def measure():
+    if get_size() < max_space:
+        image = take_photo()
+
+        quality = eval_photo(image)
+        if quality >= minval:
+            global n
+            img_name = dir / "photo_{}.jpg".format(str(n).zfill(3))
+            image.save(img_name)
+            n += 1
+            photo_quality[img_name] = quality
+
+
 def main():
+    sleep(2)  # Camera warmup
+
     now_time = datetime.now()
-    # The end of the allocated time window
     end_time = now_time + runtime
+    # The end of the allocated time window
     next_time = now_time
 
     while now_time < end_time:
@@ -119,7 +126,7 @@ def main():
             now_time = datetime.now()
             if now_time > next_time:
                 next_time = now_time + dt
-                take_photo(n)
+                measure()
                 # Check if we are late
                 if datetime.now() > next_time:
                     logger.warn("Measurement took too long")
