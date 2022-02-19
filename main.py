@@ -23,6 +23,10 @@ def take_photo():
     pass
 
 
+def eval_photo(image):
+    pass   
+
+
 def main():
     now_time = datetime.now()
     # The end of the allocated time window
