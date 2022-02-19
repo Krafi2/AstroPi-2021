@@ -82,7 +82,7 @@ def eval_photo(image):
 
             counts[color] += 1
 
-    logger.info("Finished pohoto evaluation")
+    logger.info("Finished photo evaluation")
     return round(sum({count * weights[name] for (name, count) in counts.items()})) * sample ** 2
 
 
