@@ -1,4 +1,5 @@
 from sense_hat import SenseHat
+from picamera import PiCamera
 from datetime import datetime, timedelta
 from logzero import logger, logfile
 from pathlib import Path
@@ -27,7 +28,7 @@ def main():
     end_time = now_time + runtime
     next_time = now_time
 
-    while (now_time < end_time):
+    while now_time < end_time:
         try:
             now_time = datetime.now()
             if now_time > next_time:
