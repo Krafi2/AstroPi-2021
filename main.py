@@ -24,10 +24,10 @@ max_space = 2_990_000_000  # Maximum available data size
 photo_quality = {}  # dict
 sample = 16  # Image quality sampling factor
 
-
 # Window mask
 circle_bb_topleft_corner = (322, 36)
 circle_diameter = 1412
+# A circular mask applied to the image to cover the window
 circle_mask = Image.new("RGB", (circle_diameter, circle_diameter), (0, 0, 0))
 ImageDraw.Draw(circle_mask).ellipse(
     [(0, 0), (circle_diameter, circle_diameter)], fill=(255, 255, 255))
@@ -37,7 +37,9 @@ dir = Path(__file__).parent.resolve()
 logfile(dir / "log.log")
 
 
-def get_size():
+def data_size():
+    "Get the size of data accumulated by the experiment so far."
+
     size = 0
     for path, _, files in os.walk(dir):
         for f in files:
@@ -47,19 +49,26 @@ def get_size():
 
 
 def eval_photo(image):
+    """Evaluate a Pillow Image to see how certain we are in its quality. A
+    positive values means that the image is good, while a negative rating means
+    that there might be just clouds."""
+
     logger.info("Starting photo evaluation")
+    # The colors of the backets
     palette = {
         "ocean": (35, 118, 152),
         "night": (0, 0, 0),
         "cloud": (255, 255, 255),
         "ground": (122, 116, 104),
     }
+    # The weights assigned to each bucket
     weights = {
         "ocean": -0.1,
         "night": -1.,
         "cloud": -0.2,
         "ground": 1.,
     }
+    # The number of pixels in each bucket
     counts = {
         "ocean": 0,
         "night": 0,
@@ -67,13 +76,17 @@ def eval_photo(image):
         "ground": 0,
     }
 
+    # Sample pixels of the image and sort them into buckets.
+    # Sampling is necessary because python isn't fast enough.
     for x in range(image.width // sample):
         for y in range(image.height // sample):
             pix = image.getpixel((x * sample, y * sample))
 
             min = 99999
             color = None
+            # Iterate through the buckets and find the "closest" one
             for name, col in palette.items():
+                # Use squared euclidean distance as a metric
                 dist = (col[0] - pix[0]) ** 2 + (col[1] -
                                                  pix[1]) ** 2 + (col[2] - pix[2]) ** 2
                 if dist < min:
@@ -87,6 +100,9 @@ def eval_photo(image):
 
 
 def crop_photo(image):
+    """Crop the area around the ISS's window and cover the remaining region
+    with a black mask."""
+
     image = image.crop((circle_bb_topleft_corner[0], circle_bb_topleft_corner[1],
                         circle_bb_topleft_corner[0] + circle_diameter, circle_bb_topleft_corner[1] + circle_diameter))
     image = ImageChops.multiply(image, circle_mask)
@@ -94,11 +110,15 @@ def crop_photo(image):
 
 
 def take_photo():
+    """Take a photo, crop it and mask the window. Return the image and exif
+    data."""
+
     logger.info("Taking photo")
     stream = io.BytesIO()
     camera.capture(stream, format="jpeg")
     stream.seek(0)
     image = Image.open(stream)
+    # Exctract the exif data so we can preserve it
     exif = image.info["exif"]
     image = crop_photo(image)
     logger.info("Photo taken")
@@ -106,7 +126,9 @@ def take_photo():
 
 
 def measure():
-    if get_size() < max_space:
+    """Try to process a measurement. Do nothing if no space is available."""
+
+    if data_size() < max_space:
         image, exif = take_photo()
 
         quality = eval_photo(image)
@@ -124,12 +146,11 @@ def measure():
 def main():
     logger.info("Warming up camera")
     sleep(2)  # Camera warmup
-    logger.info("Started")
+    logger.info("Started!")
 
-    now_time = datetime.now()
-    end_time = now_time + runtime
-    # The end of the allocated time window
-    next_time = now_time
+    now_time = datetime.now()  # The time is now
+    end_time = now_time + runtime  # End of the program's runtime
+    next_time = now_time  # The end of the allocated time window
 
     while now_time < end_time:
         try:
@@ -143,7 +164,7 @@ def main():
 
         except Exception as e:
             logger.error("{}: {}".format(e.__class__.__name__, e))
-    logger.info("Finished")
+    logger.info("Finished!")
 
 
 if __name__ == "__main__":
