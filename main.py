@@ -14,7 +14,7 @@ runtime = timedelta(minutes=178)  # Runtime of the program
 
 # Camera setup
 camera = PiCamera()
-camera.resolution = (4056, 3040)
+camera.resolution = (2028, 1520)
 camera.start_preview()
 
 # Photo setup
@@ -26,8 +26,8 @@ sample = 16  # Image quality sampling factor
 
 
 # Window mask
-circle_bb_topleft_corner = (644, 72)
-circle_diameter = 2825
+circle_bb_topleft_corner = (322, 36)
+circle_diameter = 1412
 circle_mask = Image.new("RGB", (circle_diameter, circle_diameter), (0, 0, 0))
 ImageDraw.Draw(circle_mask).ellipse(
     [(0, 0), (circle_diameter, circle_diameter)], fill=(255, 255, 255))
@@ -112,8 +112,8 @@ def measure():
         if quality >= minval:
             global n
             logger.info("Photo is good")
-            img_name = dir / "photo_{}.jpg".format(str(n).zfill(4))
-            image.save(img_name)
+            img_name = dir / f"photo_{n:04d}.jpg"
+            image.save(img_name, "JPEG", quality=100)
             n += 1
             photo_quality[img_name] = quality
         else:
