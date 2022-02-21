@@ -14,7 +14,7 @@ runtime = timedelta(minutes=178)  # Runtime of the program
 
 # Camera setup
 camera = PiCamera()
-camera.resolution = (2028, 1520)
+camera.resolution = (2028, 1520)  # Half the maximum resolution
 camera.start_preview()
 
 # Photo setup
@@ -99,21 +99,22 @@ def take_photo():
     camera.capture(stream, format="jpeg")
     stream.seek(0)
     image = Image.open(stream)
+    exif = image.info["exif"]
     image = crop_photo(image)
     logger.info("Photo taken")
-    return image
+    return image, exif
 
 
 def measure():
     if get_size() < max_space:
-        image = take_photo()
+        image, exif = take_photo()
 
         quality = eval_photo(image)
         if quality >= minval:
             global n
             logger.info("Photo is good")
             img_name = dir / f"photo_{n:04d}.jpg"
-            image.save(img_name, "JPEG", quality=100)
+            image.save(img_name, "JPEG", quality=100, exif=exif)
             n += 1
             photo_quality[img_name] = quality
         else:
