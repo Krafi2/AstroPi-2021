@@ -24,6 +24,7 @@ max_space = 2_990_000_000  # Maximum available data size
 photo_quality = {}  # dict
 sample = 16  # Image quality sampling factor
 quality = 100  # Jpeg encoding quality
+bias = 427_861  # Bias added to the image quality
 
 # Window mask
 circle_bb_topleft_corner = (322, 36)
@@ -55,27 +56,22 @@ def eval_photo(image):
     that there might be just clouds."""
 
     logger.info("Starting photo evaluation")
-    # The colors of the backets
+    # The colors of the buckets and their weights (r, g, b, w)
+    # These colors are chosen to be conservative and let an image pass more
+    # often than not, because we should hopefully have enough space.
     palette = {
-        "ocean": (35, 118, 152),
-        "night": (0, 0, 0),
-        "cloud": (255, 255, 255),
-        "ground": (122, 116, 104),
+        "night": (0, 0, 0, -1.),
+        "blue_ocean": (32, 95, 113, -0.5),
+        "turqoise_ocean": (35, 118, 152, -0.5),
+        "green_ocean": (111, 158, 150, -0.3),
+        "cloud": (240, 240, 240, -1.),
+        "ground1": (122, 116, 104, 1.),
+        "ground2": (100, 118, 118, 1.),
+        "ground3": (150, 150, 150, 1.),
+        "desert": (233, 215, 195, 1.),
+        "grass": (97, 160, 140, 0.5)
     }
-    # The weights assigned to each bucket
-    weights = {
-        "ocean": -0.1,
-        "night": -1.,
-        "cloud": -0.2,
-        "ground": 1.,
-    }
-    # The number of pixels in each bucket
-    counts = {
-        "ocean": 0,
-        "night": 0,
-        "cloud": 0,
-        "ground": 0,
-    }
+    counts = {name: 0 for name in palette.keys()}
 
     # Sample pixels of the image and sort them into buckets.
     # Sampling is necessary because python isn't fast enough.
@@ -97,7 +93,11 @@ def eval_photo(image):
             counts[color] += 1
 
     logger.info("Finished photo evaluation")
-    return round(sum({count * weights[name] for (name, count) in counts.items()})) * sample ** 2
+    print(counts)
+    counts["night"] = 0
+    rating = sum({count * palette[name][3]
+                 for (name, count) in counts.items()}) * sample ** 2 + bias
+    return round(rating)
 
 
 def crop_photo(image):
