@@ -9,8 +9,8 @@ from time import sleep
 
 
 # Timing
-dt = timedelta(seconds=1)  # Time between measurements
-runtime = timedelta(minutes=178)  # Runtime of the program
+dt = timedelta(seconds=1.1)  # Time between measurements
+runtime = timedelta(minutes=180)  # Runtime of the program
 
 # Camera setup
 camera = PiCamera()
@@ -18,10 +18,9 @@ camera.resolution = (2028, 1520)  # Half the maximum resolution
 camera.start_preview()
 
 # Photo setup
-minval = 0  # Minimum rating required to save a photo
+min_quality = 0  # Minimum rating required to save a photo
 n = 0
 max_space = 2_990_000_000  # Maximum available data size
-photo_quality = {}  # dict
 sample = 30  # Image quality sampling factor
 quality = 100  # Jpeg encoding quality
 bias = 427_861  # Bias added to the image quality
@@ -85,12 +84,15 @@ def eval_photo(image):
                 # Use squared euclidean distance as a metric
                 dist = (col[0] - pix[0]) ** 2 + (col[1] -
                                                  pix[1]) ** 2 + (col[2] - pix[2]) ** 2
+                # Find the minimum
                 if dist < min:
                     min = dist
                     color = name
 
             counts[color] += 1
 
+    # Rating is the weighted sum of pixel counts multiplied by samples squared
+    # in an attempt to somewhat normalize it.
     rating = sum({count * palette[name][3]
                  for (name, count) in counts.items()}) * sample ** 2 + bias
     return round(rating)
@@ -100,8 +102,10 @@ def crop_photo(image):
     """Crop the area around the ISS's window and cover the remaining region
     with a black mask."""
 
+    # Crop around the ISS's window
     image = image.crop((circle_bb_topleft_corner[0], circle_bb_topleft_corner[1],
                         circle_bb_topleft_corner[0] + circle_diameter, circle_bb_topleft_corner[1] + circle_diameter))
+    # Mask everything except the viewport
     image = ImageChops.multiply(image, circle_mask)
     return image
 
@@ -121,24 +125,36 @@ def take_photo():
 
 
 def measure():
-    """Try to process a measurement. Do nothing if no space is available."""
+    """Try to process a measurement. Return false when continuing isn't
+    possible."""
 
     if data_size() < max_space:
         image, exif = take_photo()
-
         quality = eval_photo(image)
-        if quality >= minval:
+
+        # If the quality is higher than minimum, save the photo
+        if quality >= min_quality:
             global n
             logger.info("Photo is good")
             img_name = dir / f"photo_{n:04d}.jpg"
+            # Save the image with the original exif data
             image.save(img_name, "JPEG", quality=quality, exif=exif)
             n += 1
-            photo_quality[img_name] = quality
         else:
             logger.info("Photo is bad")
+        return True
+    else:
+        return False
 
 
 def main():
+    """
+    The program spins until it's time to take a measurement, and then it takes
+    a photo. This photo is evaluated using some simple heuristics in order to
+    sort out images with little terrain. If it passes and there's space left,
+    it gets saved, otherwise we prematurely exit.
+    """
+
     logger.info("Warming up camera")
     sleep(2)  # Camera warmup
     logger.info("Started!")
@@ -147,15 +163,25 @@ def main():
     end_time = now_time + runtime  # End of the program's runtime
     next_time = now_time  # The end of the allocated time window
 
+    # Loop until experiment end
     while now_time < end_time:
         try:
             now_time = datetime.now()
+            # Check if we should take a measurement
             if now_time > next_time:
+                # The next measurement
                 next_time = now_time + dt
-                measure()
+
+                # Take a measurement and exit if we can't
+                if not measure():
+                    logger.info("Ending prematurely")
+                    break
+
                 # Check if we are late
                 now = datetime.now()
                 if now > next_time:
+                    # Let's hope that we can catch up. In our testing that
+                    # wasn't a problem.
                     logger.warning(
                         f"Measurement took too long ({now - now_time} > {dt})")
 
