@@ -22,7 +22,7 @@ minval = 0  # Minimum rating required to save a photo
 n = 0
 max_space = 2_990_000_000  # Maximum available data size
 photo_quality = {}  # dict
-sample = 16  # Image quality sampling factor
+sample = 30  # Image quality sampling factor
 quality = 100  # Jpeg encoding quality
 bias = 427_861  # Bias added to the image quality
 
