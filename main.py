@@ -55,7 +55,6 @@ def eval_photo(image):
     positive values means that the image is good, while a negative rating means
     that there might be just clouds."""
 
-    logger.info("Starting photo evaluation")
     # The colors of the buckets and their weights (r, g, b, w)
     # These colors are chosen to be conservative and let an image pass more
     # often than not, because we should hopefully have enough space.
@@ -92,9 +91,6 @@ def eval_photo(image):
 
             counts[color] += 1
 
-    logger.info("Finished photo evaluation")
-    print(counts)
-    counts["night"] = 0
     rating = sum({count * palette[name][3]
                  for (name, count) in counts.items()}) * sample ** 2 + bias
     return round(rating)
@@ -114,7 +110,6 @@ def take_photo():
     """Take a photo, crop it and mask the window. Return the image and exif
     data."""
 
-    logger.info("Taking photo")
     stream = io.BytesIO()
     camera.capture(stream, format="jpeg")
     stream.seek(0)
@@ -122,7 +117,6 @@ def take_photo():
     # Exctract the exif data so we can preserve it
     exif = image.info["exif"]
     image = crop_photo(image)
-    logger.info("Photo taken")
     return image, exif
 
 
