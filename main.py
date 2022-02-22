@@ -23,6 +23,7 @@ n = 0
 max_space = 2_990_000_000  # Maximum available data size
 photo_quality = {}  # dict
 sample = 16  # Image quality sampling factor
+quality = 100  # Jpeg encoding quality
 
 # Window mask
 circle_bb_topleft_corner = (322, 36)
@@ -136,7 +137,7 @@ def measure():
             global n
             logger.info("Photo is good")
             img_name = dir / f"photo_{n:04d}.jpg"
-            image.save(img_name, "JPEG", quality=100, exif=exif)
+            image.save(img_name, "JPEG", quality=quality, exif=exif)
             n += 1
             photo_quality[img_name] = quality
         else:
@@ -159,8 +160,10 @@ def main():
                 next_time = now_time + dt
                 measure()
                 # Check if we are late
-                if datetime.now() > next_time:
-                    logger.warning("Measurement took too long")
+                now = datetime.now()
+                if now > next_time:
+                    logger.warning(
+                        f"Measurement took too long ({now - now_time} > {dt})")
 
         except Exception as e:
             logger.error("{}: {}".format(e.__class__.__name__, e))
